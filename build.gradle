@@ -16,5 +16,6 @@ repositories {
 dependencies {
     compile 'org.spongepowered:spongeapi:3.1.0-SNAPSHOT'
     compile group: 'org.kefirsf', name: 'kefirbb', version: '1.1'
+    compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.4'
     testCompile group: 'junit', name: 'junit', version: '4.11'
 }
