@@ -3,6 +3,8 @@ package com.vcsajen.bbcodeforsponge;
 import com.google.inject.Inject;
 import org.kefirsf.bb.BBProcessorFactory;
 import org.kefirsf.bb.TextProcessor;
+import org.kefirsf.bb.conf.Code;
+import org.kefirsf.bb.conf.Configuration;
 import org.spongepowered.api.Game;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandException;
@@ -18,11 +20,16 @@ import org.spongepowered.api.event.game.state.GameInitializationEvent;
 import org.spongepowered.api.event.message.MessageChannelEvent;
 import org.spongepowered.api.event.message.MessageEvent;
 import org.spongepowered.api.plugin.Plugin;
+import org.spongepowered.api.service.permission.PermissionDescription;
+import org.spongepowered.api.service.permission.PermissionService;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.serializer.TextSerializers;
+import org.kefirsf.bb.ConfigurationFactory;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -47,10 +54,34 @@ public class BBCodeForSponge {
         event.setMessage(Text.of(msg));
     }*/
 
-    private String formatWithBBCode(String s)
+    String[][] permissions = {{"b", "bold"},
+            {"i", "i"},
+            {"u", "u"},
+            {"s", "s"},
+            {"color", "color"},
+            {"quote", "quote", "quote2"},
+            {"url", "url1", "url2", "url3", "url4", "url5", "url6"},
+            {"spoiler", "spoiler1", "spoiler2"},
+            {"pre", "code"}};
+
+    private String formatWithBBCode(String s, Player player)
     {
         String result0;
-        TextProcessor processor = BBProcessorFactory.getInstance().createFromResource("com/vcsajen/bbcodeforsponge/bbcode.xml");
+
+        Configuration conf = ConfigurationFactory.getInstance().createFromResource("com/vcsajen/bbcodeforsponge/bbcode.xml");
+
+        Set<Code> codes = new HashSet<>(conf.getRootScope().getCodes());
+
+        for (String[] perm: permissions) {
+            for (int i = 1; i<perm.length; i++) {
+                final int ii = i;
+                if ((!player.hasPermission("bbcodeforsponge.bbcode."+perm[0])))
+                    codes.removeIf(code -> code.getName().equals(perm[ii]));
+            }
+        }
+        conf.getRootScope().setCodes(codes);
+
+        TextProcessor processor = BBProcessorFactory.getInstance().create(conf);
         result0=processor.process(s);
 
         Pattern p = Pattern.compile("onHover=\"show_text\\('(([\\s\\S]*?)<!--END-->)'\\)\">");
@@ -70,7 +101,7 @@ public class BBCodeForSponge {
 
     @Listener(order = Order.LAST)
     public void chatEvent(final MessageChannelEvent.Chat chat, @First final Player player){
-        if (!player.hasPermission("bbcode")) return;
+        //if (!player.hasPermission("bbcodeforsponge.use")) return;
 
         String msg = chat.getRawMessage().toPlain();
 
@@ -80,7 +111,7 @@ public class BBCodeForSponge {
 
         //msg = "Эм, "+msg+", мда.";
 
-        msg = formatWithBBCode(msg);
+        msg = formatWithBBCode(msg, player);
 
 
 
@@ -100,7 +131,19 @@ public class BBCodeForSponge {
     @Listener
     public void onGameInitialization(GameInitializationEvent event)
     {
-
+        PermissionService ps = Sponge.getServiceManager().provide(PermissionService.class).get();
+        for (String[] perm: permissions) {
+            ps.newDescriptionBuilder(this).ifPresent(db -> db
+                    .assign(PermissionDescription.ROLE_USER, true)
+                    .description(Text.of("Allows using BBCode tag ["+perm[0]+"] in chat"))
+                    .id("bbcodeforsponge.bbcode."+perm[0])
+                    .register());
+        }
+        ps.newDescriptionBuilder(this).ifPresent(db -> db
+                .assign(PermissionDescription.ROLE_USER, true)
+                .description(Text.of("Allows formatting chat with BBCode"))
+                .id("bbcodeforsponge.use")
+                .register());
     }
 
     private class OneMatch
