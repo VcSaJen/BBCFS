@@ -38,7 +38,7 @@ import org.apache.commons.lang3.StringEscapeUtils;
 /**
  * Created by VcSaJen on 08.02.2016.
  */
-@Plugin(id = "bbcodeforsponge", name = "BBCodeForSponge", version = "1.0")
+@Plugin(id = "bbcodeforsponge", name = "BBCodeForSponge", version = "1.0", authors={"VcSaJen"}, description = "Plugin for formatting chat in BBCode")
 public class BBCodeForSponge {
     @Inject
     private Game game;
@@ -105,8 +105,8 @@ public class BBCodeForSponge {
 
         String msg = chat.getRawMessage().toPlain();
 
-        String msg1 = chat.getMessage().get().toPlain();
-        String msg2 = chat.getOriginalMessage().get().toPlain();
+        String msg1 = chat.getMessage().toPlain();
+        String msg2 = chat.getOriginalMessage().toPlain();
         String msg3 = chat.getChannel().toString();
 
         //msg = "Эм, "+msg+", мда.";
