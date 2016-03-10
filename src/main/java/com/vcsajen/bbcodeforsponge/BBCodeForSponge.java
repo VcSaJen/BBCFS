@@ -1,17 +1,14 @@
 package com.vcsajen.bbcodeforsponge;
 
 import com.google.inject.Inject;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.kefirsf.bb.BBProcessorFactory;
 import org.kefirsf.bb.TextProcessor;
 import org.kefirsf.bb.conf.Code;
 import org.kefirsf.bb.conf.Configuration;
+import org.slf4j.Logger;
 import org.spongepowered.api.Game;
 import org.spongepowered.api.Sponge;
-import org.spongepowered.api.command.CommandException;
-import org.spongepowered.api.command.CommandResult;
-import org.spongepowered.api.command.CommandSource;
-import org.spongepowered.api.command.args.CommandContext;
-import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.Order;
@@ -22,6 +19,7 @@ import org.spongepowered.api.event.message.MessageEvent;
 import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.service.permission.PermissionDescription;
 import org.spongepowered.api.service.permission.PermissionService;
+import org.spongepowered.api.text.LiteralText;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.serializer.TextSerializers;
 import org.kefirsf.bb.ConfigurationFactory;
@@ -38,10 +36,13 @@ import org.apache.commons.lang3.StringEscapeUtils;
 /**
  * Created by VcSaJen on 08.02.2016.
  */
-@Plugin(id = "bbcodeforsponge", name = "BBCodeForSponge", version = "1.0", authors={"VcSaJen"}, description = "Plugin for formatting chat in BBCode")
+@Plugin(id = "com.vcsajen.bbcodeforsponge", name = "BBCodeForSponge", version = "1.0", authors={"VcSaJen"}, description = "Plugin for formatting chat in BBCode", dependencies = {}, url = "http://example.com/")
 public class BBCodeForSponge {
     @Inject
     private Game game;
+
+    @Inject
+    private Logger logger;
 
     /*@Listener
     public void onMessageEvent(MessageEvent event, @First Player player){
@@ -99,20 +100,47 @@ public class BBCodeForSponge {
         return result0;
     }
 
-    @Listener(order = Order.LAST)
+    @Listener(order = Order.LATE)
     public void chatEvent(final MessageChannelEvent.Chat chat, @First final Player player){
         //if (!player.hasPermission("bbcodeforsponge.use")) return;
 
-        String msg = chat.getRawMessage().toPlain();
+        /*Text mytext = chat.getFormatter().getBody().format();
+        for (Text t: mytext.withChildren()) {
+            player.sendMessage(Text.of("Content: "+((LiteralText)t).getContent()));
+            //player.sendMessage(t);
+        }*/
 
-        String msg1 = chat.getMessage().toPlain();
+
+        //--------------------------
+        boolean playingNice;
+
+        /*logger.debug("Header: ");
+        chat.getFormatter().getHeader().getAll().forEach(t -> {logger.debug(t.getClass().getName() + " => " + t.getParameters().toString());});
+
+        logger.debug("Body: ");
+        chat.getFormatter().getBody().getAll().forEach(t -> {logger.debug(t.getClass().getName() + " => " + t.getParameters().toString());});
+
+        logger.debug("Footer: ");
+        chat.getFormatter().getFooter().getAll().forEach(t -> {logger.debug(t.getClass().getName() + " => " + t.getParameters().toString());});
+*/
+        MutableObject<Text> msg_ = new MutableObject<>();
+        chat.getFormatter().getBody().forEach(MessageEvent.DefaultBodyApplier.class, applier -> msg_.setValue(Text.of(applier.getParameter("body"))));
+
+
+        String msg;
+        //String msg = chat.getFormatter().getBody().format().toPlain();
+        playingNice = msg_.getValue()!=null;
+        if (playingNice)
+            msg = msg_.getValue().toPlain(); //Nice
+        else msg = chat.getFormatter().getBody().format().toPlain(); //Brute
+
+                String msg1 = chat.getMessage().toPlain();
         String msg2 = chat.getOriginalMessage().toPlain();
         String msg3 = chat.getChannel().toString();
 
         //msg = "Эм, "+msg+", мда.";
 
         msg = formatWithBBCode(msg, player);
-
 
 
         //Text t = TextSerializers.JSON.deserialize("{text:\"Hover.\",hoverEvent:{action:show_text,value:\"Hello\\nthere.\"}}");
@@ -123,7 +151,18 @@ public class BBCodeForSponge {
         //player.sendMessage(TextSerializers.TEXT_XML.deserialize(s));
 
         //player.sendMessage(Text.of(msg));
-        chat.setMessage(TextSerializers.TEXT_XML.deserialize("&lt;"+player.getName()+"&gt; "+msg));
+
+        //chat.setMessage(TextSerializers.TEXT_XML.deserialize("&lt;"+player.getName()+"&gt; "+msg));
+
+        Text formattedMsg = TextSerializers.TEXT_XML.deserialize(msg);
+
+        if (playingNice)
+            chat.getFormatter().getBody().forEach(MessageEvent.DefaultBodyApplier.class, applier -> applier.setParameter("body", formattedMsg));
+        else
+        {
+            chat.setMessage(formattedMsg);
+            logger.warn("Some of your chat plugins doesn't support new MessageEvent appliers! Things can be broken.");
+        }
         //chat.setMessage(TextSerializers.TEXT_XML.deserialize("&lt;"+player.getName()+"&gt; <span onHover=\"show_text('&lt;u&gt;LOL&#xD;&#xA;LOL&lt;/u&gt;')\">[+++]</span>"));
         //chat.setMessage(t);
     }
