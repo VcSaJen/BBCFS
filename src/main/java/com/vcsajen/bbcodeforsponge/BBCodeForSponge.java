@@ -24,10 +24,7 @@ import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.serializer.TextSerializers;
 import org.kefirsf.bb.ConfigurationFactory;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -55,6 +52,10 @@ public class BBCodeForSponge {
         event.setMessage(Text.of(msg));
     }*/
 
+    private Map<String, Set<Code>> permissableCodes;
+    private Set<Code> allPermCodes;
+    private Configuration bbConfiguration;
+
     String[][] permissions = {{"b", "bold"},
             {"i", "i"},
             {"u", "u"},
@@ -65,24 +66,45 @@ public class BBCodeForSponge {
             {"spoiler", "spoiler1", "spoiler2"},
             {"pre", "code"}};
 
+
+    private void initializeBBCodeParser()
+    {
+        bbConfiguration = ConfigurationFactory.getInstance().createFromResource("com/vcsajen/bbcodeforsponge/bbcode.xml");
+        Set<Code> codes = new HashSet<>(bbConfiguration.getRootScope().getCodes());
+        permissableCodes = new HashMap<>();
+        allPermCodes = new HashSet<>();
+
+        for (String[] perm: permissions) {
+            Set<Code> codesForThisPerm = new HashSet<>();
+            for (int i = 1; i<perm.length; i++) {
+                final int ii = i;
+                for (Code code: codes) {
+                    if (code.getName().equals(perm[ii])) {
+                        codesForThisPerm.add(code);
+                        allPermCodes.add(code);
+                    }
+                }
+            }
+            permissableCodes.put(perm[0], codesForThisPerm);
+        }
+
+    }
+
     private String formatWithBBCode(String s, Player player)
     {
         String result0;
 
-        Configuration conf = ConfigurationFactory.getInstance().createFromResource("com/vcsajen/bbcodeforsponge/bbcode.xml");
+        Set<Code> codes = new HashSet<>(bbConfiguration.getRootScope().getCodes());
 
-        Set<Code> codes = new HashSet<>(conf.getRootScope().getCodes());
+        codes.removeAll(allPermCodes);
 
         for (String[] perm: permissions) {
-            for (int i = 1; i<perm.length; i++) {
-                final int ii = i;
-                if ((!player.hasPermission("bbcodeforsponge.bbcode."+perm[0])))
-                    codes.removeIf(code -> code.getName().equals(perm[ii]));
-            }
+            if (player.hasPermission("bbcodeforsponge.bbcode."+perm[0]))
+                codes.addAll(permissableCodes.get(perm[0]));
         }
-        conf.getRootScope().setCodes(codes);
+        bbConfiguration.getRootScope().setCodes(codes);
 
-        TextProcessor processor = BBProcessorFactory.getInstance().create(conf);
+        TextProcessor processor = BBProcessorFactory.getInstance().create(bbConfiguration);
         result0=processor.process(s);
 
         Pattern p = Pattern.compile("onHover=\"show_text\\('(([\\s\\S]*?)<!--END-->)'\\)\">");
@@ -228,6 +250,7 @@ public class BBCodeForSponge {
                 .description(Text.of("Allows formatting chat with BBCode"))
                 .id("bbcodeforsponge.use")
                 .register());
+        initializeBBCodeParser();
     }
 
     private class OneMatch
