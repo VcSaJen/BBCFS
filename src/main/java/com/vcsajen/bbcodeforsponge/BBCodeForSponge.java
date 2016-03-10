@@ -100,6 +100,39 @@ public class BBCodeForSponge {
         return result0;
     }
 
+    /**
+     * Try to simulate niceness by trying to extract header (time, nickname, group, etc)
+     * @param fullFormattedMsg Message formed from plugin intervention
+     * @param originalBody Original text typed by user
+     * @return Header, or empty Text if failed
+     */
+    private Text wrestHeaderOut(Text fullFormattedMsg, Text originalBody)
+    {
+        String original = TextSerializers.TEXT_XML.serialize(originalBody);
+        String serFormatted = TextSerializers.TEXT_XML.serialize(fullFormattedMsg);
+
+        original = original.replaceAll("<.*?>", "");
+
+        String tmp = "";
+        int i = serFormatted.length()-1;
+        int k = 0;
+        while ((serFormatted.charAt(i) == '>' || k>0) && i>=0) //Удаляем задние теги
+        {
+            if (serFormatted.charAt(i) == '>') k++;
+            if (serFormatted.charAt(i) == '<') k--;
+            tmp = serFormatted.charAt(i) + tmp;
+            i--;
+        }
+        serFormatted = serFormatted.substring(0, i+1);
+
+        if (serFormatted.endsWith(original))
+        {
+            serFormatted = serFormatted.substring(0, serFormatted.length()-original.length());
+            return TextSerializers.TEXT_XML.deserialize(serFormatted + tmp);
+        }
+        return Text.EMPTY;
+    }
+
     @Listener(order = Order.LATE)
     public void chatEvent(final MessageChannelEvent.Chat chat, @First final Player player){
         //if (!player.hasPermission("bbcodeforsponge.use")) return;
@@ -110,7 +143,7 @@ public class BBCodeForSponge {
             //player.sendMessage(t);
         }*/
 
-
+        long start = System.nanoTime();
         //--------------------------
         boolean playingNice;
 
@@ -128,15 +161,23 @@ public class BBCodeForSponge {
 
 
         String msg;
+        Text header = Text.EMPTY;
         //String msg = chat.getFormatter().getBody().format().toPlain();
         playingNice = msg_.getValue()!=null;
         if (playingNice)
             msg = msg_.getValue().toPlain(); //Nice
-        else msg = chat.getFormatter().getBody().format().toPlain(); //Brute
+        else
+        {
+            header = wrestHeaderOut(chat.getFormatter().getBody().format(), chat.getRawMessage());
+            if (header.isEmpty())
+                msg = chat.getFormatter().getBody().format().toPlain();
+            else msg = chat.getRawMessage().toPlain(); //Brute
+        }
 
-                String msg1 = chat.getMessage().toPlain();
+        /*String msg1 = chat.getMessage().toPlain();
         String msg2 = chat.getOriginalMessage().toPlain();
-        String msg3 = chat.getChannel().toString();
+        String msg3 = chat.getRawMessage().toString();
+        player.sendMessage(Text.of("Message: ", msg, "; OriginalMessage: ", msg2, "; RawMessage: ", msg3));*/
 
         //msg = "Эм, "+msg+", мда.";
 
@@ -160,9 +201,13 @@ public class BBCodeForSponge {
             chat.getFormatter().getBody().forEach(MessageEvent.DefaultBodyApplier.class, applier -> applier.setParameter("body", formattedMsg));
         else
         {
-            chat.setMessage(formattedMsg);
-            logger.warn("Some of your chat plugins doesn't support new MessageEvent appliers! Things can be broken.");
+            chat.setMessage(Text.join(header, formattedMsg));
+            if (header.isEmpty())
+                logger.warn("Some of your chat plugins doesn't support new MessageEvent appliers! Manual extracting of header failed! Things can be broken.");
         }
+
+        long end = System.nanoTime();
+        logger.debug(Long.toString(end-start));
         //chat.setMessage(TextSerializers.TEXT_XML.deserialize("&lt;"+player.getName()+"&gt; <span onHover=\"show_text('&lt;u&gt;LOL&#xD;&#xA;LOL&lt;/u&gt;')\">[+++]</span>"));
         //chat.setMessage(t);
     }
