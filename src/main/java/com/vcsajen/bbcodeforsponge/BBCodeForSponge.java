@@ -76,7 +76,7 @@ public class BBCodeForSponge {
 
     private Asset getAsset(String name)
     {
-        return plugin.getAsset(name).get()/*orElseThrow(() -> new AssetNotFoundException(String.format("Asset %s is not found!", name)))*/;
+        return plugin.getAsset(name).orElseThrow(() -> new AssetNotFoundException(String.format("Asset %s is not found!", name)));
     }
 
     private void initializeBBCodeParser()
