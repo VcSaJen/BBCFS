@@ -1,6 +1,7 @@
 package com.vcsajen.bbcodeforsponge;
 
 import com.google.inject.Inject;
+import com.vcsajen.bbcodeforsponge.exception.AssetNotFoundException;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.kefirsf.bb.BBProcessorFactory;
 import org.kefirsf.bb.TextProcessor;
@@ -9,6 +10,8 @@ import org.kefirsf.bb.conf.Configuration;
 import org.slf4j.Logger;
 import org.spongepowered.api.Game;
 import org.spongepowered.api.Sponge;
+import org.spongepowered.api.asset.Asset;
+import org.spongepowered.api.asset.AssetManager;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.Order;
@@ -17,6 +20,7 @@ import org.spongepowered.api.event.game.state.GameInitializationEvent;
 import org.spongepowered.api.event.message.MessageChannelEvent;
 import org.spongepowered.api.event.message.MessageEvent;
 import org.spongepowered.api.plugin.Plugin;
+import org.spongepowered.api.plugin.PluginContainer;
 import org.spongepowered.api.service.permission.PermissionDescription;
 import org.spongepowered.api.service.permission.PermissionService;
 import org.spongepowered.api.text.LiteralText;
@@ -24,6 +28,7 @@ import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.serializer.TextSerializers;
 import org.kefirsf.bb.ConfigurationFactory;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -40,6 +45,9 @@ public class BBCodeForSponge {
 
     @Inject
     private Logger logger;
+
+    @Inject
+    PluginContainer plugin;
 
     /*@Listener
     public void onMessageEvent(MessageEvent event, @First Player player){
@@ -66,28 +74,37 @@ public class BBCodeForSponge {
             {"spoiler", "spoiler1", "spoiler2"},
             {"pre", "code"}};
 
+    private Asset getAsset(String name)
+    {
+        return plugin.getAsset(name).get()/*orElseThrow(() -> new AssetNotFoundException(String.format("Asset %s is not found!", name)))*/;
+    }
 
     private void initializeBBCodeParser()
     {
-        bbConfiguration = ConfigurationFactory.getInstance().createFromResource("com/vcsajen/bbcodeforsponge/bbcode.xml");
-        Set<Code> codes = new HashSet<>(bbConfiguration.getRootScope().getCodes());
-        permissableCodes = new HashMap<>();
-        allPermCodes = new HashSet<>();
+        try {
+            bbConfiguration = ConfigurationFactory.getInstance().create(this.getAsset("bbcode.xml").getUrl().openStream());
 
-        for (String[] perm: permissions) {
-            Set<Code> codesForThisPerm = new HashSet<>();
-            for (int i = 1; i<perm.length; i++) {
-                final int ii = i;
-                for (Code code: codes) {
-                    if (code.getName().equals(perm[ii])) {
-                        codesForThisPerm.add(code);
-                        allPermCodes.add(code);
+            Set<Code> codes = new HashSet<>(bbConfiguration.getRootScope().getCodes());
+            permissableCodes = new HashMap<>();
+            allPermCodes = new HashSet<>();
+
+            for (String[] perm: permissions) {
+                Set<Code> codesForThisPerm = new HashSet<>();
+                for (int i = 1; i<perm.length; i++) {
+                    final int ii = i;
+                    for (Code code: codes) {
+                        if (code.getName().equals(perm[ii])) {
+                            codesForThisPerm.add(code);
+                            allPermCodes.add(code);
+                        }
                     }
                 }
+                permissableCodes.put(perm[0], codesForThisPerm);
             }
-            permissableCodes.put(perm[0], codesForThisPerm);
-        }
 
+        } catch (IOException e) {
+            logger.error(e.getMessage(), e);
+        }
     }
 
     private String formatWithBBCode(String s, Player player)
@@ -225,7 +242,7 @@ public class BBCodeForSponge {
         {
             chat.setMessage(Text.join(header, formattedMsg));
             if (header.isEmpty())
-                logger.warn("Some of your chat plugins doesn't support new MessageEvent appliers! Manual extracting of header failed! Things can be broken.");
+                logger.warn("Some of installed chat plugins doesn't support new MessageEvent appliers! Manual extracting of header failed! Things can be broken.");
         }
 
         long end = System.nanoTime();
