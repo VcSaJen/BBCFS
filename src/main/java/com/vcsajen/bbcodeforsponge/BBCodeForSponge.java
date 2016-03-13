@@ -9,21 +9,20 @@ import org.kefirsf.bb.conf.Code;
 import org.kefirsf.bb.conf.Configuration;
 import org.slf4j.Logger;
 import org.spongepowered.api.Game;
-import org.spongepowered.api.Sponge;
 import org.spongepowered.api.asset.Asset;
-import org.spongepowered.api.asset.AssetManager;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.Order;
 import org.spongepowered.api.event.filter.cause.First;
 import org.spongepowered.api.event.game.state.GameInitializationEvent;
+import org.spongepowered.api.event.game.state.GamePostInitializationEvent;
 import org.spongepowered.api.event.message.MessageChannelEvent;
 import org.spongepowered.api.event.message.MessageEvent;
 import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.plugin.PluginContainer;
 import org.spongepowered.api.service.permission.PermissionDescription;
 import org.spongepowered.api.service.permission.PermissionService;
-import org.spongepowered.api.text.LiteralText;
+import org.spongepowered.api.service.permission.Subject;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.serializer.TextSerializers;
 import org.kefirsf.bb.ConfigurationFactory;
@@ -49,6 +48,9 @@ public class BBCodeForSponge {
     @Inject
     PluginContainer plugin;
 
+    private boolean actualPermissionServiceAvailable;
+    private Map<String, Boolean> fallbackPermissions;
+
     private Map<String, Set<Code>> permissableCodes;
     private Set<Code> allPermCodes;
     private Configuration bbConfiguration;
@@ -62,6 +64,13 @@ public class BBCodeForSponge {
             {"url", "url1", "url2", "url3", "url4", "url5", "url6"},
             {"spoiler", "spoiler1", "spoiler2"},
             {"pre", "code"}};
+
+    private boolean subjHasPermission(Subject subj, String permission)
+    {
+        boolean defaultPermission = fallbackPermissions.get(permission);
+
+        return subj.hasPermission(permission) || (!actualPermissionServiceAvailable && defaultPermission);
+    }
 
     private Asset getAsset(String name)
     {
@@ -105,7 +114,7 @@ public class BBCodeForSponge {
         codes.removeAll(allPermCodes);
 
         for (String[] perm: permissions) {
-            if (player.hasPermission("bbcodeforsponge.bbcode."+perm[0]))
+            if (subjHasPermission(player, "bbcodeforsponge.bbcode."+perm[0]))
                 codes.addAll(permissableCodes.get(perm[0]));
         }
         bbConfiguration.getRootScope().setCodes(codes);
@@ -163,7 +172,7 @@ public class BBCodeForSponge {
 
     @Listener(order = Order.LATE)
     public void chatEvent(final MessageChannelEvent.Chat chat, @First final Player player){
-        if (!player.hasPermission("bbcodeforsponge.use")) return;
+        if (!subjHasPermission(player,"bbcodeforsponge.use")) return;
 
         boolean playingNice;
 
@@ -199,16 +208,27 @@ public class BBCodeForSponge {
     }
 
     @Listener
+    public void onGamePostInitialization(GamePostInitializationEvent event)
+    {
+        PermissionService permServ = game.getServiceManager().provide(PermissionService.class).get();
+
+        actualPermissionServiceAvailable = permServ != null && !permServ.getClass().getSimpleName().equals("SpongePermissionService");
+    }
+
+    @Listener
     public void onGameInitialization(GameInitializationEvent event)
     {
-        PermissionService ps = Sponge.getServiceManager().provide(PermissionService.class).get();
+        fallbackPermissions = new HashMap<>();
+        PermissionService ps = game.getServiceManager().provide(PermissionService.class).get();
         for (String[] perm: permissions) {
+            fallbackPermissions.put("bbcodeforsponge.bbcode."+perm[0], true);
             ps.newDescriptionBuilder(this).ifPresent(db -> db
                     .assign(PermissionDescription.ROLE_USER, true)
                     .description(Text.of("Allows using BBCode tag ["+perm[0]+"] in chat"))
                     .id("bbcodeforsponge.bbcode."+perm[0])
                     .register());
         }
+        fallbackPermissions.put("bbcodeforsponge.use", true);
         ps.newDescriptionBuilder(this).ifPresent(db -> db
                 .assign(PermissionDescription.ROLE_USER, true)
                 .description(Text.of("Allows formatting chat with BBCode"))
