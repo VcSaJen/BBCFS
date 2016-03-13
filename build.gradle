@@ -17,9 +17,9 @@ repositories {
     }
 }
 
+def bintrayVersion = getVersion()+(System.getenv('TRAVIS') ? "."+System.getenv('TRAVIS_BUILD_NUMBER') : ".0")
+def bintrayProjName = rootProject.name
 setVersion(getVersion()+(System.getenv('TRAVIS') ? "."+System.getenv('TRAVIS_BUILD_NUMBER') : ".0")+(System.getenv('TRAVIS_TAG') ? "" : (System.getenv('TRAVIS') ? "-"+System.getenv('TRAVIS_COMMIT').take(7) : "")+"-SNAPSHOT"))
-def myVersion = getVersion()
-def myProjName = rootProject.name
 
 def getSecret(String secretname){
     def result = System.getenv(secretname)
@@ -57,8 +57,8 @@ bintray {
         licenses = ['MIT']
         vcsUrl = 'https://github.com/VcSaJen/BBCodeForSponge.git'
         version {
-            name = myVersion.toString()
-            desc = myProjName.toString() + myVersion.toString()
+            name = bintrayVersion.toString()
+            desc = bintrayProjName.toString() + myVersion.toString()
             released = new Date()
             vcsTag = System.getenv('TRAVIS_TAG')?:""
         }
