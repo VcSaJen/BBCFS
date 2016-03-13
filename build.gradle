@@ -18,8 +18,8 @@ repositories {
 }
 
 setVersion(getVersion()+(System.getenv('TRAVIS') ? System.getenv('TRAVIS_BUILD_NUMBER') : ".0")+(System.getenv('TRAVIS_TAG') ? "" : (System.getenv('TRAVIS') ? System.getenv('TRAVIS_COMMIT') : "")+"-SNAPSHOT"))
-myVersion = getVersion()
-myProjName = rootProject.name
+def myVersion = getVersion()
+def myProjName = rootProject.name
 
 def getSecret(String secretname){
     def result = System.getenv(secretname)
@@ -52,7 +52,7 @@ bintray {
     pkg {
         repo = 'generic'
         name = 'BBCodeForSponge'
-        autoPublish = true
+        publish = true
         userOrg = user
         licenses = ['MIT']
         vcsUrl = 'https://github.com/VcSaJen/BBCodeForSponge.git'
