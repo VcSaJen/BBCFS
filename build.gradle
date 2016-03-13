@@ -58,7 +58,7 @@ bintray {
         vcsUrl = 'https://github.com/VcSaJen/BBCodeForSponge.git'
         version {
             name = bintrayVersion.toString()
-            desc = bintrayProjName.toString() + myVersion.toString()
+            desc = bintrayProjName.toString() + bintrayVersion.toString()
             released = new Date()
             vcsTag = System.getenv('TRAVIS_TAG')?:""
         }
