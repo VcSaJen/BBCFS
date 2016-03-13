@@ -60,7 +60,7 @@ bintray {
             name = bintrayVersion.toString()
             desc = bintrayProjName.toString() + bintrayVersion.toString()
             released = new Date()
-            vcsTag = System.getenv('TRAVIS_TAG')?:""
+            vcsTag = System.getenv('TRAVIS_TAG') ? System.getenv('TRAVIS_TAG') : System.getenv('TRAVIS_COMMIT')
         }
     }
 }
