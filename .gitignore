@@ -75,3 +75,7 @@ nb-configuration.xml
 *.iws
 /.apt_generated/
 *.launch
+
+# Secret #
+##########
+secrets.properties

@@ -1,5 +1,9 @@
+plugins {
+    id "com.jfrog.bintray" version "1.6"
+}
+
 group 'com.vcsajen'
-version '1.0'
+version '1.0.0'
 
 apply plugin: 'java'
 
@@ -11,6 +15,16 @@ repositories {
         name = 'sponge'
         url = 'http://repo.spongepowered.org/maven'
     }
+}
+
+setVersion(getVersion()+(System.getenv('TRAVIS') ? System.getenv('TRAVIS_BUILD_NUMBER') : ".0")+(System.getenv('TRAVIS_TAG') ? "" : (System.getenv('TRAVIS') ? System.getenv('TRAVIS_COMMIT') : "")+"-SNAPSHOT"))
+
+def getSecret(String secretname){
+    def result = System.getenv(secretname)
+    if (result != null && result != "") return result;
+    def Properties props = new Properties()
+    props.load(new FileInputStream(new File('secrets.properties')))
+    return props[secretname]
 }
 
 configurations {
@@ -27,4 +41,23 @@ dependencies {
 
 jar {
     from configurations.myCode.collect { it.isDirectory() ? it : zipTree(it) }
+}
+
+bintray {
+    user = getSecret('BINTRAY_USER_NAME')
+    key = getSecret('BINTRAY_API_KEY')
+    configurations = ['archives']
+    pkg {
+        repo = 'generic'
+        name = 'BBCodeForSponge'
+        userOrg = user
+        licenses = ['MIT']
+        vcsUrl = 'https://github.com/VcSaJen/BBCodeForSponge.git'
+        version {
+            name = getVersion()
+            desc = rootProject.name + getVersion()
+            released = new Date()
+            vcsTag = System.getenv('TRAVIS_TAG')?:""
+        }
+    }
 }
