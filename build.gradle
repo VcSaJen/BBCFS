@@ -17,7 +17,7 @@ repositories {
     }
 }
 
-setVersion(getVersion()+(System.getenv('TRAVIS') ? System.getenv('TRAVIS_BUILD_NUMBER') : ".0")+(System.getenv('TRAVIS_TAG') ? "" : (System.getenv('TRAVIS') ? System.getenv('TRAVIS_COMMIT') : "")+"-SNAPSHOT"))
+setVersion(getVersion()+(System.getenv('TRAVIS') ? "."+System.getenv('TRAVIS_BUILD_NUMBER') : ".0")+(System.getenv('TRAVIS_TAG') ? "" : (System.getenv('TRAVIS') ? "-"+System.getenv('TRAVIS_COMMIT').take(7) : "")+"-SNAPSHOT"))
 def myVersion = getVersion()
 def myProjName = rootProject.name
 
