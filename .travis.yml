@@ -13,7 +13,8 @@ deploy:
   provider: releases
   api_key:
     secure: "${GITHUB_API_KEY_SECURE}"
-  file: build/libs
+  file_glob: true
+  file: build/libs/*.jar
   on:
     repo: VcSaJen/BBCodeForSponge
     tags: true
